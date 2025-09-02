@@ -1,9 +1,12 @@
 import time
+from typing import Sequence
 
 import httpx
+from todoaiagent.domain.models import Todo
+from todoaiagent.domain.ports import IProjectManagementClient
 from todoaiagent.rest_interface.http import create_httpx_client
 
-class TrelloClient():
+class TrelloClient(IProjectManagementClient):
     def __init__(self, base_url: str, api_key: str, api_token: str, max_retries: int = 3, timeout: int = 4):
         self.base_url = base_url
         self.max_retries = max_retries
@@ -11,7 +14,7 @@ class TrelloClient():
         self.auth = {"key": api_key, "token": api_token}
         self.http_client = create_httpx_client(base_url=base_url, timeout=timeout)
 
-    def create_tasks(self, todo_list: list, with_retry: bool = False):
+    def create_tasks(self, todo_list: Sequence[Todo], with_retry: bool = False):
         url = f"{self.base_url}/cards"
 
         headers = {
