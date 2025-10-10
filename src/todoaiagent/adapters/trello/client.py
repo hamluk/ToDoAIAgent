@@ -3,6 +3,7 @@ from typing import Sequence
 
 import httpx
 from todoaiagent.adapters.trello.mapper import map_todos_to_trello_cards
+from todoaiagent.adapters.trello.models import TrelloCard
 from todoaiagent.domain.models import Todo
 from todoaiagent.domain.ports import IProjectManagementClient
 from todoaiagent.rest_interface.http import create_httpx_client
@@ -20,7 +21,7 @@ class TrelloClient(IProjectManagementClient):
             "customer": "68b01257013ede507ac2930c"
         }
 
-    def create_tasks(self, todo_list: Sequence[Todo], idList:str, with_retry: bool = False):
+    def create_tasks(self, todo_list: Sequence[Todo], idList:str, with_retry: bool = False) -> list[TrelloCard]:
         trello_cards = map_todos_to_trello_cards(todo_list, idList, self.label_map)
 
         url = f"{self.base_url}/cards"
@@ -38,7 +39,13 @@ class TrelloClient(IProjectManagementClient):
             }
           
             params = {**query, **self.auth}
-            self._request(headers=headers, request_method="POST", url=url, params=params, data=None, retry_enabled=with_retry)
+            try:
+                self._request(headers=headers, request_method="POST", url=url, params=params, data=None, retry_enabled=with_retry)
+            except Exception as e:
+                raise
+
+        return trello_cards
+            
 
     def _request(self, headers: dict, request_method: str, url: str, params: dict, data, retry_enabled: bool = False):
         retries = 0
@@ -59,13 +66,19 @@ class TrelloClient(IProjectManagementClient):
                 response.raise_for_status()
                 return response
             except httpx.HTTPStatusError as e:
-                print(f"Error on HTTP request with status {e}")
+                if retry_enabled:
+                    if retries >= self.max_retries:
+                        print(f"Error on HTTP request with status {e}") 
+                    time.sleep(2 ** retries)
+                    retries += 1
+                else:
+                    print(f"Error on HTTP request with status {e}") 
+                    raise
             except httpx.RequestError as e:
                 # retry strategie for the request
                 if retry_enabled:
                     if retries >= self.max_retries:
                         print(f"Error on HTTP request, max retries exceeded! {e}")
-                        raise
                     time.sleep(2 ** retries)
                     retries += 1
                 else:

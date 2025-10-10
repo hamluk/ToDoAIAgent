@@ -1,7 +1,23 @@
+from dotenv import load_dotenv
 import streamlit as st
-from typing import List, Dict
+from typing import List
 
+from todoaiagent.adapters.trello.client import TrelloClient
 from todoaiagent.domain.models import Todo
+
+import os
+
+from todoaiagent.services.todo_service import TodoService
+
+# load environment variables for dev purpose
+load_dotenv()
+
+trello_base_url = os.getenv("TRELLO_BASE_URL")
+id_list = os.getenv("ID_LIST")
+api_key = os.getenv("API_KEY")
+api_token = os.getenv("TOKEN")
+max_retries = int(os.getenv("MAX_RETRIES"))
+timeout = int(os.getenv("TIMEOUT"))
 
 st.set_page_config(page_title="To-Do AI Agent Showcase", layout="centered")
 
@@ -16,6 +32,10 @@ if "transkript" not in st.session_state:
     st.session_state["transkript"] = ""
 if "voice_file" not in st.session_state:
     st.session_state["voice_file"] = None
+if "process_state" not in st.session_state:
+    st.session_state["process_state"] = "idle"
+if "error_message" not in st.session_state:
+    st.session_state["error_message"] = ""
 
 
 # --- input section ---
@@ -23,7 +43,7 @@ st.subheader("Input")
 
 
 input_mode = st.selectbox(
-"Input Type", ["Voice", "Text"]
+"Input Type", ["Text", "Voice"]
 )
 
 
@@ -41,21 +61,18 @@ elif input_mode == "Voice":
 
 submit_btn = st.button("Submit")
 
-# --- process state ---
-st.subheader("Process Status")
-process_placeholder = st.empty()
-
-# --- output section ---
-st.subheader("Created To-Dos")
-if "todos" not in st.session_state:
-    st.session_state["todos"] = []
-
 if submit_btn:
     if input_mode == "Text" and not st.session_state["transkript"].strip():
         st.warning("Please copy transkript in text area above.")
     elif input_mode == "Voice" and st.session_state["voice_file"] is None:
         st.warning("Please uplaod transkript as audio file.")
     else:
+        # --- process state ---
+        st.subheader("Process Status")
+        process_placeholder = st.empty()
+
+        if "todos" not in st.session_state:
+            st.session_state["todos"] = []
         with st.spinner("AI Agent analyzes transkript and creates ToDos..."):
             # TODO: add call to python backend
 
@@ -64,13 +81,30 @@ if submit_btn:
                 Todo(title="Prepare Meeting Follow-up", description="Description to Task", priority="High", due="2025-10-10"),
                 Todo(title="Contact Customer XY", description="Description to Contact Customer Task", priority="Medium", due="2025-10-11")
             ]
-            st.session_state["todos"] = todos
 
-        process_placeholder.info("✅ Transkript processed, following To-Dos got created.")
+            pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
+
+            todoservice = TodoService(pmt_client)
+            trello_todos = None
+            try:
+                trello_todos = todoservice.createTodo(todos, id_list)
+            except Exception as e:
+                st.session_state["process_state"] = "error"
+                st.session_state["error_message"] = e
+
+            if trello_todos is not None:
+                st.session_state["todos"] = trello_todos
+
+        if st.session_state["process_state"] != "error":
+            process_placeholder.info("✅ Transkript processed and todos created.")
+        else:
+            process_placeholder.error(f"❌ Error creating ToDos: {st.session_state["error_message"]}")
 
 # --- display created To-Dos and trello link ---
 if st.session_state["todos"]:
+    st.subheader("Created To-Dos")
+    
     for todo in st.session_state["todos"]:
-        st.markdown(f"- **{todo['title']}**  | Priorität: {todo['priority']} | Fällig: {todo['due']}")
+        st.markdown(f"{todo}")
 
-    st.markdown("\n🔗 [View ToDos in trello](https://trello.com/) ")
+    st.markdown("\n🔗 [View ToDos in trello](https://trello.com/b/0tRcSjHf/todo-ai-agent-showcase) ")

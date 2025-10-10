@@ -17,3 +17,6 @@ class TrelloCard(BaseModel):
             return idList
         
         raise ValueError("idList must match pattern: '^[0-9a-fA-F]{24}$'")
+    
+    def __str__(self):
+        return f"""TrelloCard {self.name} with description {self.desc} is due at {self.due} and has the labels {self.idLabels} attached to it."""
