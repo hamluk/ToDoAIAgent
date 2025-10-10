@@ -8,8 +8,6 @@ def map_todos_to_trello_cards(todos: list[Todo], idList: str, label_map: dict[st
         trello_desc = todo.description
         trello_due = todo.due_trello_format
         trello_labels = []
-        for label in todo.labels:
-            trello_labels.append(label_map.get(label, ""))
 
         trello_cards.append(TrelloCard(
                                 idList=idList,
