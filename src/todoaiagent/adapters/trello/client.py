@@ -8,9 +8,8 @@ from todoaiagent.domain.ports import IProjectManagementClient
 from todoaiagent.rest_interface.http import create_httpx_client
 
 class TrelloClient(IProjectManagementClient):
-    def __init__(self, base_url: str, idList: str, api_key: str, api_token: str, max_retries: int = 3, timeout: int = 4):
+    def __init__(self, base_url: str, api_key: str, api_token: str, max_retries: int = 3, timeout: int = 4):
         self.base_url = base_url
-        self.idList = idList
         self.max_retries = max_retries
         self.timeout = timeout
         self.auth = {"key": api_key, "token": api_token}
@@ -21,8 +20,8 @@ class TrelloClient(IProjectManagementClient):
             "customer": "68b01257013ede507ac2930c"
         }
 
-    def create_tasks(self, todo_list: Sequence[Todo], with_retry: bool = False):
-        trello_cards = map_todos_to_trello_cards(todo_list, self.label_map)
+    def create_tasks(self, todo_list: Sequence[Todo], idList:str, with_retry: bool = False):
+        trello_cards = map_todos_to_trello_cards(todo_list, idList, self.label_map)
 
         url = f"{self.base_url}/cards"
 
@@ -32,15 +31,14 @@ class TrelloClient(IProjectManagementClient):
 
         for card in trello_cards:     
             query = {
-                "id_list": self.idList,
+                "idList": card.idList,
                 "name": card.name,
                 "desc": card.desc,
                 "due": card.due,
-                "idLabels": ",".join(card.idLabels)
             }
           
             params = {**query, **self.auth}
-            self._request(headers=headers, request_method="POST", url=url, params=params, retry_enabled=with_retry)
+            self._request(headers=headers, request_method="POST", url=url, params=params, data=None, retry_enabled=with_retry)
 
     def _request(self, headers: dict, request_method: str, url: str, params: dict, data, retry_enabled: bool = False):
         retries = 0

@@ -1,7 +1,7 @@
 from todoaiagent.adapters.trello.models import TrelloCard
 from todoaiagent.domain.models import Todo
 
-def map_todos_to_trello_cards(todos: list[Todo], label_map: dict[str, str]) -> list[TrelloCard]:
+def map_todos_to_trello_cards(todos: list[Todo], idList: str, label_map: dict[str, str]) -> list[TrelloCard]:
     trello_cards = []
     for todo in todos:
         trello_name = todo.title
@@ -12,6 +12,7 @@ def map_todos_to_trello_cards(todos: list[Todo], label_map: dict[str, str]) -> l
             trello_labels.append(label_map.get(label, ""))
 
         trello_cards.append(TrelloCard(
+                                idList=idList,
                                 name=trello_name, 
                                 desc=trello_desc, 
                                 due=trello_due, 

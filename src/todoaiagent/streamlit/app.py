@@ -1,6 +1,8 @@
 import streamlit as st
 from typing import List, Dict
 
+from todoaiagent.domain.models import Todo
+
 st.set_page_config(page_title="To-Do AI Agent Showcase", layout="centered")
 
 
@@ -55,12 +57,12 @@ if submit_btn:
         st.warning("Please uplaod transkript as audio file.")
     else:
         with st.spinner("AI Agent analyzes transkript and creates ToDos..."):
-            # TODO: add call to python backen
+            # TODO: add call to python backend
 
             # store result in todos
-            todos: List[Dict] = [
-                {"title": "Prepare Meeting Follow-up", "priority": "High", "due": "2025-09-01"},
-                {"title": "Contact Customer XY", "priority": "Medium", "due": "2025-09-03"},
+            todos: List[Todo] = [
+                Todo(title="Prepare Meeting Follow-up", description="Description to Task", priority="High", due="2025-10-10"),
+                Todo(title="Contact Customer XY", description="Description to Contact Customer Task", priority="Medium", due="2025-10-11")
             ]
             st.session_state["todos"] = todos
 

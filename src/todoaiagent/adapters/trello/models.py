@@ -11,7 +11,7 @@ class TrelloCard(BaseModel):
 
     @field_validator("idList")
     @classmethod
-    def validate_idList(self, idList: str) -> str:
+    def validate_idList(cls, idList: str) -> str:
         pattern = re.compile("^[0-9a-fA-F]{24}$")
         if pattern.match(idList):
             return idList
