@@ -10,6 +10,7 @@ from todoaiagent.domain.models import Todo
 
 import os
 
+from todoaiagent.services.audio_to_text import audio_to_text
 from todoaiagent.services.todo_service import TodoService
 
 # load environment variables for dev purpose
@@ -80,13 +81,12 @@ if submit_btn:
         if "todos" not in st.session_state:
             st.session_state["todos"] = []
         with st.spinner("AI Agent analyzes transkript and creates ToDos..."):
-            # TODO: add call to python backend
 
-            # store result in todos
-            todos: List[Todo] = [
-                Todo(title="Prepare Meeting Follow-up", description="Description to Task", priority="High", due="2025-10-10"),
-                Todo(title="Contact Customer XY", description="Description to Contact Customer Task", priority="Medium", due="2025-10-11")
-            ]
+            transkript_text = ""
+            if input_mode == "Text":
+                transkript_text = st.session_state["transkript"]
+            elif input_mode == "Voice":
+                transkript_text = audio_to_text(st.session_state["voice_file"])
 
             agent = TodoAgent(settings=settings)
             pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
@@ -95,7 +95,7 @@ if submit_btn:
             
             trello_todos = None
             try:
-                trello_todos = agent.run(st.session_state["transkript"], deps=deps)
+                trello_todos = agent.run(transkript_text, deps=deps)
             except Exception as e:
                 st.session_state["process_state"] = "error"
                 st.session_state["error_message"] = e
