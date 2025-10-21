@@ -7,7 +7,7 @@ from langgraph.graph import StateGraph
 from langgraph.types import interrupt
 
 from todoaiagent.agents.langchain.models import TrelloTaskList
-from todoaiagent.agents.langchain.tools import create_tasks_from_transkript_chain
+from todoaiagent.streamlit.app import trello_todos
 
 
 def update_status(old: Literal[str], new: str) -> str:
@@ -28,7 +28,6 @@ class TaskState(TypedDict):
 
 
 def create_tasks_from_tanskript(state: TaskState):
-    trello_todos = create_tasks_from_transkript_chain(state.get("transkript"))
 
     return {"todos": trello_todos}
 

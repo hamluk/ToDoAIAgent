@@ -1,47 +1,49 @@
-from langchain_mistralai import ChatMistralAI
-from langchain_core.prompts.chat import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from datetime import date
+from datetime import date, timedelta
 
-import os
+from langchain_core.output_parsers import PydanticOutputParser
 
+from todoaiagent.agents.factorys.llm_factory import get_llm_chat_provider
 from todoaiagent.agents.langchain.models import TrelloTaskList
+from langchain_core.prompts.chat import ChatPromptTemplate
 
-def create_tasks_from_transkript_chain(transkript: str) -> TrelloTaskList:
-    """Creates tasks from a given transkript
+from todoaiagent.agents.prompts.loader import build_todo_chat_messages
+from todoaiagent.config import LLMSettings
 
-    Invokes the create-task-chain to analyze a given transkript and create tasks form it.
+
+def create_tasks_from_transcript_chain(transcript: str, llm_settings: LLMSettings) -> TrelloTaskList:
+    """
+    Creates tasks from a given transcript
+    Invokes the create-task-chain to analyze a given transcript and create tasks form it.
 
     Args:
-        transkript (str): the transkript as string to analyze and create tasks from
+        transcript (str): the transcript as string to analyze and create tasks from
+        llm_settings: llm specific settings
 
     Returns:
         TrelloTaskList: A list of TrelloTask objects
 
     """
     today = date.today()
+    monday = today - timedelta(days=today.weekday())
 
-    chat_prompt = ChatPromptTemplate([
-        ("system", """You are a helpful assistant that analyses a given transkript and creates todo tasks from it.
-         For finding the due date use today's date {today} as a reference.
-         Put the extracted information for the task into following format: {format_instruction}
-         """),
-        ("human", "Create task for: {transkript}")
-    ])
-    
-    llm_chat = ChatMistralAI(model_name=os.getenv("LLM_MISTRAL_MODEL"), api_key=os.getenv("MISTRAL_API_KEY"))
+    llm_chat_provider = get_llm_chat_provider(llm_settings)
 
-    llm_chat.with_structured_output(TrelloTaskList)
-    
-    parser = JsonOutputParser(pydantic_object=TrelloTaskList)
+    parser = PydanticOutputParser(pydantic_object=TrelloTaskList)
 
-    chain = chat_prompt | llm_chat | parser
+    prompt_from_yaml = build_todo_chat_messages(settings=llm_settings)
 
-    todos = TrelloTaskList(tasks=chain.invoke({
-        "today": today.isoformat(),
-        "transkript": transkript,
-        "format_instruction": parser.get_format_instructions()
-        }).get("tasks"))
+    chat_prompt = ChatPromptTemplate(prompt_from_yaml)
+
+    chain = chat_prompt | llm_chat_provider | parser
+
+    # Todo: Find a way to put all of this directly into the prompt building function
+    llm_result = chain.invoke({
+        "today": monday.isoformat(),
+        "transcript": transcript,
+        "format_instructions": parser.get_format_instructions()
+    })
+
+    todos = TrelloTaskList(tasks=llm_result.tasks)
 
     return todos
 

@@ -1,11 +1,13 @@
+
 from dotenv import load_dotenv
 import streamlit as st
 
-
-from todoaiagent.agents.config import TodoAgentSettings
 from todoaiagent.adapters.trello.client import TrelloClient
+from todoaiagent.agents.config import TodoAgentSettings
+from todoaiagent.agents.langchain.tools import create_tasks_from_transcript_chain
+from todoaiagent.config import Mistral, OpenAI, PromptSettings, LLMSettings
+
 from todoaiagent.services.todo_service import TodoService
-from todoaiagent.agents.langchain.tools import create_tasks_from_transkript_chain
 
 import os
 
@@ -66,7 +68,8 @@ settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), m
 pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
 todoservice = TodoService(pmt_client)
 
-@st.dialog("Review created Tasks")
+
+@st.dialog(title="Review created Tasks", width="medium", dismissible=False)
 def show_created_tasks():
     task_container = st.container()
 
@@ -102,7 +105,7 @@ elif input_mode == "Voice":
     st.session_state["transkript"] = ""
     voice_file = st.file_uploader("Uplaod Audio file", type=["mp3", "wav", "m4a"], key="voice_file")
 
-# ---- sumit section ----
+
 submit_btn = st.button("Submit")
 if submit_btn:
     st.session_state["process_state"] = "idle"
@@ -113,6 +116,26 @@ if submit_btn:
     else:
         # --- process state ---
         st.subheader("Process Status")
+
+        mistral_settings = Mistral(
+            mistral_model=os.getenv("LLM_MISTRAL_MODEL"),
+            api_key=os.getenv("MISTRAL_API_KEY")
+        )
+        openai_settings = OpenAI(
+            temperature=float(os.getenv("TEMPERATURE")),
+            api_model=os.getenv("OPENAI_MODEL_NAME"),
+        )
+        prompt_settings = PromptSettings(
+            system_prompt_file=os.getenv("SYSTEM_PROMPT_FILE"),
+            prompt_dir=os.getenv("PROMPT_DIR"),
+            max_prompt_tokens=4000
+        )
+        llm_settings = LLMSettings(
+            provider=os.getenv("LLM_CHAT_PROVIDER"),
+            mistral=mistral_settings,
+            openai=openai_settings,
+            prompt=prompt_settings
+        )
 
 
         if "todos" not in st.session_state:
@@ -125,7 +148,7 @@ if submit_btn:
             elif input_mode == "Voice":
                 transkript_text = audio_to_text(st.session_state["voice_file"])
 
-            st.session_state["analyzed_todos"] = create_tasks_from_transkript_chain(transkript_text)
+            st.session_state["analyzed_todos"] = create_tasks_from_transcript_chain(transkript_text, llm_settings)
             st.session_state["process_state"] = "approval"
             # ---- End LangChain approach ----
             st.rerun()

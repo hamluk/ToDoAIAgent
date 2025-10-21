@@ -11,4 +11,5 @@ Oh, and update the budget forecast once the latest ad spend numbers are in — p
 short_prompt="""
 Alright, here’s what we need to focus on this week.  
 First, the new marketing campaign assets must be finalized by Thursday — Sarah is handling the visuals, but we still need copy approval.
+Next, please schedule a meeting with the design team early next week to review the new layout ideas.
 """
