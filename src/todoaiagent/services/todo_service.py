@@ -12,7 +12,7 @@ class TodoService():
         todos = None
         try:
             todos = self.pm_client.create_tasks(todo_list, idList)
-        except Exception as e:
+        except Exception:
             raise
         
         return todos

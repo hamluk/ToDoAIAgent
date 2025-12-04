@@ -1,17 +1,15 @@
 from dotenv import load_dotenv
 import streamlit as st
-from typing import List
 
-from todoaiagent.adapters.trello.client import TrelloClient
+
 from todoaiagent.agents.config import TodoAgentSettings
-from todoaiagent.agents.models.dependencies import TodoAgentDependencies
-from todoaiagent.agents.todo_agent import TodoAgent
-from todoaiagent.domain.models import Todo
+from todoaiagent.adapters.trello.client import TrelloClient
+from todoaiagent.services.todo_service import TodoService
+from todoaiagent.agents.langchain.tools import create_tasks_from_transkript_chain
 
 import os
 
 from todoaiagent.services.audio_to_text import audio_to_text
-from todoaiagent.services.todo_service import TodoService
 
 # load environment variables for dev purpose
 load_dotenv()
@@ -40,20 +38,59 @@ if "process_state" not in st.session_state:
     st.session_state["process_state"] = "idle"
 if "error_message" not in st.session_state:
     st.session_state["error_message"] = ""
+if "human_feedback" not in st.session_state:
+    st.session_state["human_feedback"] = None
+if "submitted" not in st.session_state:
+    st.session_state["submitted"] = False
+if "analyzed_todos" not in st.session_state:
+    st.session_state["analyzed_todos"] = None
 
 
 settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), mistral_api_key=os.getenv("MISTRAL_API_KEY"))
+# ---- Pydantic AI Agent approach ----
+# agent = TodoAgent(settings=settings)
+# pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
+# todoservice = TodoService(pmt_client)
+# deps = TodoAgentDependencies(todoservice, id_list)
+
+# trello_todos = None
+# try:
+#     trello_todos = agent.run(transkript_text, deps=deps)
+# except Exception as e:
+#     st.session_state["process_state"] = "error"
+#     st.session_state["error_message"] = e
+# ---- End Pydantic AI Agent approach ----
+
+# ---- LangChain approach ----
+
+pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
+todoservice = TodoService(pmt_client)
+
+@st.dialog("Review created Tasks")
+def show_created_tasks():
+    task_container = st.container()
+
+    with task_container:
+        for task in st.session_state["analyzed_todos"].tasks:
+            st.write(str(task))
+
+    if st.button("Approve"):
+
+        task_container.empty()
+        st.session_state["process_state"] = "success"
+        st.rerun()
+
+    if st.button("Reject"):
+        task_container.empty()
+        st.session_state["process_state"] = "rejected"
+        st.rerun()
 
 
 # --- input section ---
 st.subheader("Input")
-
-
 input_mode = st.selectbox(
 "Input Type", ["Text", "Voice"]
 )
-
-
 if input_mode == "Text":
     st.session_state["voice_file"] = None
     transkript = st.text_area(
@@ -65,10 +102,10 @@ elif input_mode == "Voice":
     st.session_state["transkript"] = ""
     voice_file = st.file_uploader("Uplaod Audio file", type=["mp3", "wav", "m4a"], key="voice_file")
 
-
+# ---- sumit section ----
 submit_btn = st.button("Submit")
-
 if submit_btn:
+    st.session_state["process_state"] = "idle"
     if input_mode == "Text" and not st.session_state["transkript"].strip():
         st.warning("Please copy transkript in text area above.")
     elif input_mode == "Voice" and st.session_state["voice_file"] is None:
@@ -76,7 +113,7 @@ if submit_btn:
     else:
         # --- process state ---
         st.subheader("Process Status")
-        process_placeholder = st.empty()
+
 
         if "todos" not in st.session_state:
             st.session_state["todos"] = []
@@ -88,31 +125,32 @@ if submit_btn:
             elif input_mode == "Voice":
                 transkript_text = audio_to_text(st.session_state["voice_file"])
 
-            agent = TodoAgent(settings=settings)
-            pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
-            todoservice = TodoService(pmt_client)
-            deps = TodoAgentDependencies(todoservice, id_list)
-            
-            trello_todos = None
-            try:
-                trello_todos = agent.run(transkript_text, deps=deps)
-            except Exception as e:
-                st.session_state["process_state"] = "error"
-                st.session_state["error_message"] = e
+            st.session_state["analyzed_todos"] = create_tasks_from_transkript_chain(transkript_text)
+            st.session_state["process_state"] = "approval"
+            # ---- End LangChain approach ----
+            st.rerun()
 
-            if trello_todos is not None:
-                st.session_state["todos"] = trello_todos
 
-        if st.session_state["process_state"] != "error":
-            process_placeholder.info("✅ Transkript processed and todos created.")
-        else:
-            process_placeholder.error(f"❌ Error creating ToDos: {st.session_state["error_message"]}")
+if st.session_state["process_state"] == "approval":
+    show_created_tasks()
 
-# --- display created To-Dos and trello link ---
-if st.session_state["todos"]:
+
+# ---- display created To-Dos and trello link ----
+process_placeholder = st.empty()
+if st.session_state["process_state"] == "success":
     st.subheader("Created To-Dos")
 
-    for todo in st.session_state["todos"]:
-        st.markdown(f"{todo}")
+    trello_todos = todoservice.createTodo(st.session_state["analyzed_todos"].tasks, id_list)
 
-    st.markdown("\n🔗 [View ToDos in trello](https://trello.com/b/0tRcSjHf/todo-ai-agent-showcase) ")
+    if trello_todos is not None:
+        st.session_state["todos"] = trello_todos
+
+        for todo in st.session_state["todos"]:
+            st.markdown(f"{todo}")
+
+        st.markdown("\n🔗 [View ToDos in trello](https://trello.com/b/0tRcSjHf/todo-ai-agent-showcase) ")
+        process_placeholder.info("✅ Transkript processed and todos created.")
+    st.session_state["analyzed_todos"] = None
+elif st.session_state["process_state"] == "rejected":
+    process_placeholder.info("⚠ To-Dos rejected by human. No To-Dos were created.")
+    st.session_state["analyzed_todos"] = None

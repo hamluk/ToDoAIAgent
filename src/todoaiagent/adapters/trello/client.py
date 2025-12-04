@@ -41,7 +41,7 @@ class TrelloClient(IProjectManagementClient):
             params = {**query, **self.auth}
             try:
                 self._request(headers=headers, request_method="POST", url=url, params=params, data=None, retry_enabled=with_retry)
-            except Exception as e:
+            except Exception:
                 raise
 
         return trello_cards
