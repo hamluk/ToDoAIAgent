@@ -12,6 +12,7 @@ class Mistral(BaseModel):
 class OpenAI(BaseModel):
     temperature: float
     api_model: str
+    openai_api_key: str
     
     
 class PromptSettings(BaseModel):

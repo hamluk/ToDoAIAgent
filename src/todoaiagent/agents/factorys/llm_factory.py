@@ -23,7 +23,8 @@ def get_llm_chat_provider(llm_settings: LLMSettings):
     elif llm_settings.provider == LLMProviderName.OPENAI:
         return ChatOpenAI(
             temperature=llm_settings.openai.temperature,
-            model=llm_settings.openai.api_model
+            model=llm_settings.openai.api_model,
+            api_key=llm_settings.openai.openai_api_key
         )
 
     raise ValueError(f"Unknown LLM Chat Provider {llm_settings.provider}. Provider currently not implemented")
