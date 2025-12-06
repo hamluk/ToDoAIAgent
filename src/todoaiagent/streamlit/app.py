@@ -72,21 +72,62 @@ todoservice = TodoService(pmt_client)
 @st.dialog(title="Review created Tasks", width="medium", dismissible=False)
 def show_created_tasks():
     task_container = st.container()
+    analyzed_todos = st.session_state["analyzed_todos"].tasks
 
     with task_container:
-        for task in st.session_state["analyzed_todos"].tasks:
-            st.write(str(task))
+        if len(analyzed_todos) == 0:
+            st.write("No tasks to review.")
+        else:
+            for i, task in enumerate(analyzed_todos):
+                cols = st.columns([4, 1])
+                with cols[0]:
+                    st.write(str(task))
+                with cols[1]:
+                    if st.button("Delete", key=f"delete_task_{i}"):
+                        analyzed_todos.pop(i)
+                        st.session_state["analyzed_todos"].tasks = analyzed_todos
+                        st.rerun()
 
-    if st.button("Approve"):
+    st.divider()
+    approve_col, decline_col = st.columns(2)
+    with approve_col:
+        if st.button("Approve", disabled=len(analyzed_todos) == 0):
+            task_container.empty()
+            st.session_state["process_state"] = "success"
+            st.rerun()
 
-        task_container.empty()
-        st.session_state["process_state"] = "success"
-        st.rerun()
+    with decline_col:
+        if st.button("Reject", type="primary"):
+            task_container.empty()
+            st.session_state["process_state"] = "rejected"
+            st.rerun()
 
-    if st.button("Reject"):
-        task_container.empty()
-        st.session_state["process_state"] = "rejected"
-        st.rerun()
+
+with st.expander("Read Me:"):
+    st.markdown("""
+            ##### Turn any meeting transcript automatically with one click into real tasks. 📝🧠
+
+            *Q: Why did you build this?*  
+            A: Because after every meeting or workday, someone still has to sit down and extract the actual tasks. This is a waste of time, and it has to be done again after every meeting.
+            
+            *Q: So what does your showcase do?*  
+            A: You give it a transcript, and the agent analyzes it, creates clean actionable to-dos, and saves them directly into a connected Project Management Tool.
+            
+            *Q: So it’s just summarizing text?*  
+            A: No, it’s an autonomous agent. It decides what counts as a task and handles the full creation process for you.
+            
+            *Q: And what do I, the user, have to do?*  
+            A: Nothing but pass in the transcript. The agent handles the rest.
+
+            #### 📩 Interested in more?
+            If you enjoyed this showcase and want to explore custom **AI solutions** for your business or project,  
+            feel free to reach out:
+
+            | [🌐 Visit my Website](https://lukashamm.dev) | [💬 Visit my LinkedIn Profile](https://www.linkedin.com/in/lukashamm-dev) | [👨‍💻 View my GitHub](https://github.com/hamluk) | [📧 Send me an Email](mailto:lukas@lukashamm.dev) |
+            |---|---|---|---|
+            """)
+
+st.divider()
 
 
 # --- input section ---
