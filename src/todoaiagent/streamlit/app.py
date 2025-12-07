@@ -3,25 +3,23 @@ from dotenv import load_dotenv
 import streamlit as st
 
 from todoaiagent.adapters.trello.client import TrelloClient
-from todoaiagent.agents.config import TodoAgentSettings
 from todoaiagent.agents.langchain.tools import create_tasks_from_transcript_chain
 from todoaiagent.config import Mistral, OpenAI, PromptSettings, LLMSettings
 
 from todoaiagent.services.todo_service import TodoService
 
-import os
 
 from todoaiagent.services.audio_to_text import audio_to_text
 
 # load environment variables for dev purpose
 load_dotenv()
 
-trello_base_url = os.getenv("TRELLO_BASE_URL")
-id_list = os.getenv("ID_LIST")
-api_key = os.getenv("API_KEY")
-api_token = os.getenv("TOKEN")
-max_retries = int(os.getenv("MAX_RETRIES"))
-timeout = int(os.getenv("TIMEOUT"))
+trello_base_url = st.secrets["TRELLO_BASE_URL"]
+id_list = st.secrets["ID_LIST"]
+api_key = st.secrets["API_KEY"]
+api_token = st.secrets["TOKEN"]
+max_retries = int(st.secrets["MAX_RETRIES"])
+timeout = int(st.secrets["TIMEOUT"])
 
 st.set_page_config(page_title="To-Do AI Agent Showcase", layout="centered")
 
@@ -54,7 +52,7 @@ if "prompt_input" not in st.session_state:
     st.session_state.prompt_input = ""
 
 
-settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), mistral_api_key=os.getenv("MISTRAL_API_KEY"))
+#settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), mistral_api_key=os.getenv("MISTRAL_API_KEY"))
 # ---- Pydantic AI Agent approach ----
 # agent = TodoAgent(settings=settings)
 # pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
@@ -227,21 +225,21 @@ else:
             st.subheader("Process Status")
 
             mistral_settings = Mistral(
-                mistral_model=os.getenv("LLM_MISTRAL_MODEL"),
-                api_key=os.getenv("MISTRAL_API_KEY")
+                mistral_model=st.secrets["LLM_MISTRAL_MODEL"],
+                api_key=st.secrets["MISTRAL_API_KEY"]
             )
             openai_settings = OpenAI(
-                temperature=float(os.getenv("TEMPERATURE")),
-                api_model=os.getenv("OPENAI_MODEL_NAME"),
+                temperature=float(st.secrets["TEMPERATURE"]),
+                api_model=st.secrets["OPENAI_MODEL_NAME"],
                 openai_api_key=st.session_state.api_key
             )
             prompt_settings = PromptSettings(
-                system_prompt_file=os.getenv("SYSTEM_PROMPT_FILE"),
-                prompt_dir=os.getenv("PROMPT_DIR"),
+                system_prompt_file=st.secrets["SYSTEM_PROMPT_FILE"],
+                prompt_dir=st.secrets["PROMPT_DIR"],
                 max_prompt_tokens=4000
             )
             llm_settings = LLMSettings(
-                provider=os.getenv("LLM_CHAT_PROVIDER"),
+                provider=st.secrets["LLM_CHAT_PROVIDER"],
                 mistral=mistral_settings,
                 openai=openai_settings,
                 prompt=prompt_settings
