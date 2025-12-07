@@ -50,6 +50,8 @@ if "locked" not in st.session_state:
     st.session_state.locked = False
 if "api_key" not in st.session_state:
     st.session_state.api_key = None
+if "prompt_input" not in st.session_state:
+    st.session_state.prompt_input = ""
 
 
 settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), mistral_api_key=os.getenv("MISTRAL_API_KEY"))
@@ -71,6 +73,34 @@ settings = TodoAgentSettings(llm_mistral_model=os.getenv("LLM_MISTRAL_MODEL"), m
 
 pmt_client = TrelloClient(trello_base_url, api_key, api_token, max_retries, timeout)
 todoservice = TodoService(pmt_client)
+example_prompts = {
+    "meeting notes": """
+Participants:
+•	Sarah (Project Lead)
+•	Michael (Tech Lead)
+•	Julia (Marketing)
+•	Jonas (Sales)
+•	Lisa (Customer Success)
+
+Sarah:\nAlright, let’s get started. First topic: our API rollout is slightly delayed. Michael, please prepare a short risk assessment by Wednesday, so we can decide whether we can keep the launch date.
+Michael:\nGot it. And I need the final requirements from BetaCorp. Lisa, can you send those to me by tomorrow morning?
+Lisa:\nSure. I just need to review them with their IT team first — I’ll handle that this afternoon.
+Julia:\nThe landing page is almost ready, but I still need the product description from Mike’s documentation. Michael, can you send me the PDF by Friday?
+Michael:\nYes, that works.
+Jonas:\nFrom the sales side: We urgently need to update our pricing sheet. Julia, could you finish your new graphic by Thursday? Then I’ll take care of updating the PDF.
+Julia:\nYes, Thursday is fine. I’ll send everything over by 5 PM.
+Sarah:\nAnd Jonas, please schedule a short alignment call with BetaCorp for next week. Sometime between Tuesday and Thursday would be ideal.
+Jonas:\nWill do. I’ll send them three time options today.
+Sarah:\nPerfect. Last item: I need a short status update from everyone by Friday at noon — just two or three bullet points each.
+        """,
+    "weekly planer": """
+Monday:\nI need to finalize the redesign for my client Studio Reimann. The mobile version is almost done, but the checkout flow still needs work. This should be completed by Tuesday evening. Then I want to prepare three social media posts for Instagram and LinkedIn — theme: “Behind the Scenes Redesign.” I want to get them done by the end of this week.\n
+Tuesday:\nSend a follow-up to GreenLabs because they still haven’t approved the UI concept. I also need to create the invoice for Craft Brewery — deadline is Thursday.\n
+Wednesday:\nI’m recording a new podcast episode in the afternoon — title: “How to Charge More as a Freelancer.” Before that, I need to finish the intro script, ideally by Wednesday morning.\n
+Thursday:\nI plan to update my portfolio website. The case study layout needs improvement. It should definitely happen this week.\n
+Friday:\nTax stuff. I have to organize my receipts and prepare the VAT pre-declaration — deadline is Monday next week. And I want to schedule one hour of learning for this week — probably watching a few advanced Figma prototyping tutorials.\n
+        """
+}
 
 
 @st.dialog(title="Review created Tasks", width="medium", dismissible=False)
@@ -115,9 +145,9 @@ def unlock_fields():
     st.session_state.locked = False
 
 
-with st.expander("Read Me:"):
+with st.expander("Read Me:", expanded=True):
     st.markdown("""
-            ##### Turn any meeting transcript automatically with one click into real tasks. 📝🧠
+            ##### Turn meeting transcript automatically with one click into real tasks📝🧠
 
             *Q: Why did you build this?*  
             A: Because after every meeting or workday, someone still has to sit down and extract the actual tasks. This is a waste of time, and it has to be done again after every meeting.
@@ -141,7 +171,6 @@ with st.expander("Read Me:"):
 
 st.divider()
 
-
 st.text_input(
         key="api_key_input",
         label="API Key:",
@@ -161,9 +190,14 @@ else:
 
 
 if not st.session_state.locked:
-    st.warning("New Model and API Key will be set after you click the button above.")
+    st.warning("Please set your Openai API Key before starting.")
 else:
     # --- input section ---
+    with st.expander("Example transcripts:"):
+        for key, prompt in example_prompts.items():
+            if st.button(key, type="tertiary"):
+                st.session_state.prompt_input = prompt
+
     st.subheader("Input")
     input_mode = st.selectbox(
     "Input Type", ["Text", "Voice"]
@@ -171,9 +205,10 @@ else:
     if input_mode == "Text":
         st.session_state["voice_file"] = None
         transkript = st.text_area(
-        "Insert Transkript as copy",
-        height=200,
-        key="transkript"
+            "Insert Transkript as copy",
+            height=200,
+            key="transkript",
+            value=st.session_state.prompt_input
         )
     elif input_mode == "Voice":
         st.session_state["transkript"] = ""
